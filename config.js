@@ -1,1 +1,1 @@
-var config = ["file1.js","file2.js","file3.js","fileN.js"];
+var config = ["org/markside/ext/helloworld.js","org/markside/ext/byeworld.js"];
