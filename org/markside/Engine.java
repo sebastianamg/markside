@@ -9,6 +9,7 @@ import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 
 public class Engine {
+	private final int CMD = 0, ARGS = 1;
 	private static final String INIT_CONFIG = "config.js";
 	private ScriptEngine jsEng;
 	
@@ -24,6 +25,7 @@ public class Engine {
 	}
 	
 	private String eval(String cmd) throws ScriptException {
+		System.out.println("Executing ... "+cmd);
 		return this.jsEng.eval(cmd).toString();
 	}
 	private int evalInt(String cmd) throws ScriptException {
@@ -43,14 +45,30 @@ public class Engine {
 		System.out.println(this.jsEng.eval("loadScript(script)"));
 	}
 	
+	private String[] parseCmd(String input) {
+		String[] ans = new String[2];
+		ans[CMD] = ans[ARGS] = ""; 
+		Scanner str = new Scanner(input);
+		int i = 0;
+		while(str.hasNext()) {
+			ans[i] +=  str.next() + ((i==1 && str.hasNext())?",":" ");
+			i = 1;
+		}
+		ans[CMD] = ans[CMD].trim();
+		ans[ARGS] = ans[ARGS].trim();
+		str.close();
+		return ans;
+	}
+	
 	public void repl() throws ScriptException, FileNotFoundException {
 		Scanner in = new Scanner(System.in);
 		boolean isRunning = true;
 		do {
 			System.out.print("> ");
 			String cmd = in.nextLine();
+			String[] parsedCmd = parseCmd(cmd);
 			try {
-				switch (Operator.valueOf(cmd)) {
+				switch (Operator.valueOf(parsedCmd[CMD])) {
 				case list:
 					System.out.println("------- Basic:");
 					for (Operator op : Operator.values()) {
@@ -68,7 +86,7 @@ public class Engine {
 					break;
 				}
 			}catch(IllegalArgumentException e) {
-				System.out.println(eval("runScript(\""+cmd+"\",null)"));
+				System.out.println(eval("runScript(\""+parsedCmd[CMD]+"\",["+parsedCmd[ARGS]+"])"));
 			}
 		}while(isRunning);
 		in.close();

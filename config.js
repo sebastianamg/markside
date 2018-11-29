@@ -1,6 +1,6 @@
 extensions = [
-	"org/markside/ext/helloworld.js",
-	"org/markside/ext/byeworld.js"
+	"org/markside/ext/add.js",
+	"org/markside/ext/mul.js"
 ];
 
 script = {
