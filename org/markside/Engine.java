@@ -1,9 +1,7 @@
 package org.markside;
 
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
-import java.util.HashMap;
 import java.util.Scanner;
 
 import javax.script.ScriptEngine;
@@ -12,67 +10,68 @@ import javax.script.ScriptException;
 
 public class Engine {
 	private static final String INIT_CONFIG = "config.js";
-	private HashMap<String, FileReader> operators;
+	private ScriptEngine jsEng;
 	
 	public Engine() {
-		this.operators = new HashMap<>();
+		this.jsEng = getJSEngine();
 	}
 	
 	private ScriptEngine getJSEngine() {
 		// create a script engine manager
 		ScriptEngineManager factory = new ScriptEngineManager();
 		// create a JavaScript engine
-		ScriptEngine engine = factory.getEngineByName("JavaScript");
-		return engine;
+		return factory.getEngineByName("JavaScript");
 	}
 	
-	private String getScriptName(File operator) throws FileNotFoundException, ScriptException {
-		ScriptEngine engine = this.getJSEngine();
-		engine.eval(new FileReader(operator));
-		return engine.eval("script.name").toString();
+	private String eval(String cmd) throws ScriptException {
+		return this.jsEng.eval(cmd).toString();
+	}
+	private int evalInt(String cmd) throws ScriptException {
+		return Integer.parseInt(this.jsEng.eval(cmd).toString());
 	}
 	
 	public void init() throws FileNotFoundException, ScriptException {
-		ScriptEngine engine = this.getJSEngine();
-		engine.eval(new java.io.FileReader(new File(INIT_CONFIG)));
-		for (int i = 0; i < Integer.parseInt(engine.eval("config.length").toString()); i++) {
-			String script = engine.eval("config["+i+"]").toString();
-			System.out.println(script);
-			addOperator(new File(script));
+		loadScript(INIT_CONFIG);
+		for (int i = 0; i < evalInt("extensions.length"); i++) {
+			String script = eval("extensions["+i+"]");
+			loadScript(script);
 		}
-		System.out.println(this.operators);
 	}
 	
-	private void addOperator(File operator) throws FileNotFoundException, ScriptException {
-		this.operators.put(getScriptName(operator), new FileReader(operator));
+	private void loadScript(String script) throws FileNotFoundException, ScriptException {
+		this.jsEng.eval(new FileReader(script));
+		System.out.println(this.jsEng.eval("loadScript(script)"));
 	}
 	
-	public void repl() throws ScriptException {
+	public void repl() throws ScriptException, FileNotFoundException {
 		Scanner in = new Scanner(System.in);
-		final String EXIT_CMD = "exit";
 		boolean isRunning = true;
 		do {
 			System.out.print("> ");
 			String cmd = in.nextLine();
-			if(!cmd.equals(EXIT_CMD)) {
-				switch (cmd) {
-				case "list":
-					for (String op : this.operators.keySet()) {
+			try {
+				switch (Operator.valueOf(cmd)) {
+				case list:
+					System.out.println("------- Basic:");
+					for (Operator op : Operator.values()) {
 						System.out.println(op);
 					}
+					System.out.println("------- Loaded:");
+					System.out.println(eval("getListOfScripts()"));
+					
 					break;
-				default:
-					if(this.operators.containsKey(cmd)) {
-						ScriptEngine engine = getJSEngine(); 
-						engine.eval(this.operators.get(cmd));
-						System.out.println(engine.eval("script.action()"));
-					}
+				case reset:
+					this.init();
+					break;
+				case exit:
+					isRunning = false;
 					break;
 				}
-			}else {
-				isRunning = false;
+			}catch(IllegalArgumentException e) {
+				System.out.println(eval("runScript(\""+cmd+"\",null)"));
 			}
 		}while(isRunning);
+		in.close();
 	}
 	
 	public static void main(String[] args) throws FileNotFoundException, ScriptException {
