@@ -1,6 +1,6 @@
 script = {
     name:"mul",
-    action:function(args){
+    action:function(args,params){
     	var ans = 1;
     	for(i in args) {
     		ans *= args[i];

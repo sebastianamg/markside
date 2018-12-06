@@ -9,7 +9,7 @@ import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 
 public class Engine {
-	private final int CMD = 0, ARGS = 1;
+	private final int CMD = 0, ARGS = 1, PARAMS = 2;
 	private static final String INIT_CONFIG = "config.js";
 	private ScriptEngine jsEng;
 	
@@ -32,11 +32,15 @@ public class Engine {
 		return Integer.parseInt(this.jsEng.eval(cmd).toString());
 	}
 	
-	public void init() throws FileNotFoundException, ScriptException {
+	public void init() throws ScriptException, FileNotFoundException {
 		loadScript(INIT_CONFIG);
 		for (int i = 0; i < evalInt("extensions.length"); i++) {
 			String script = eval("extensions["+i+"]");
-			loadScript(script);
+			try {
+				loadScript(script);
+			} catch (FileNotFoundException | ScriptException e) {
+				e.printStackTrace();
+			}
 		}
 	}
 	
@@ -45,13 +49,47 @@ public class Engine {
 		System.out.println(this.jsEng.eval("loadScript(script)"));
 	}
 	
+	private String runFunction(String[]args) throws ScriptException {
+		return eval("runScript(\""+args[CMD]+"\",["+args[ARGS]+"],[])");
+	}
+	
+	private String execScript(String input) {
+		final int[][] graph = {
+			//	 *	/	L	#	{	[	=	,	]	}
+				{0,	1,	0,	0,	0,	0,	0,	0,	0,	0}, // 0 (Start)
+				{10,10,	2,	10,	10,	10,	10,	10,	10,	10}, // 1
+				{10,10,	2,	2,	3,	5,	10,	10,	10,	10}, // 2
+				{3,	3,	3,	3,	3,	3,	3,	3,	3,	4}, // 3
+				{0,	1,	0,	0,	0,	0,	0,	0,	0,	0}, // 4 (Final)
+				{10,10,	6,	10,	10,	10,	10,	10,	9,	10}, // 5
+				{10,10,	6,	6,	10,	10,	7,	10,	10,	10}, // 6
+				{7,	7,	7,	7,	7,	7,	7,	8,	9,	7}, // 7
+				{10,10,	6,	10,	10,	10,	10,	10,	10,	10}, // 8
+				{10,10,	10,	10,	3,	10,	10,	10,	10,	10}, // 9
+				{10,10,	10,	10,	10,	10,	10,	10,	10,	10}, // 10 (Sink / Error)
+		};
+		// TODO ...
+		for (int i = 0; i < input.length(); i++) {
+			// TODO ...
+			// 
+		}
+		
+		return null;
+	}
+	
+	
 	private String[] parseCmd(String input) {
-		String[] ans = new String[2];
-		ans[CMD] = ans[ARGS] = ""; 
+		String[] ans = new String[3];
+		ans[CMD] = ans[ARGS] = ans[PARAMS] = ""; 
 		Scanner str = new Scanner(input);
 		int i = 0;
+		boolean isString = false;
 		while(str.hasNext()) {
-			ans[i] +=  str.next() + ((i==1 && str.hasNext())?",":" ");
+			String s = str.next();
+			if(s.startsWith("\"") || s.endsWith("\"")) {
+				isString = !isString;
+			}
+			ans[i] +=  s + ((i==1 && !isString && str.hasNext())?",":" ");
 			i = 1;
 		}
 		ans[CMD] = ans[CMD].trim();
@@ -60,7 +98,7 @@ public class Engine {
 		return ans;
 	}
 	
-	public void repl() throws ScriptException, FileNotFoundException {
+	public void repl() throws FileNotFoundException {
 		Scanner in = new Scanner(System.in);
 		boolean isRunning = true;
 		do {
@@ -86,7 +124,13 @@ public class Engine {
 					break;
 				}
 			}catch(IllegalArgumentException e) {
-				System.out.println(eval("runScript(\""+parsedCmd[CMD]+"\",["+parsedCmd[ARGS]+"])"));
+				try {
+					System.out.println(runFunction(parsedCmd));
+				} catch (ScriptException e1) {
+					System.err.println("Syntax error in script: "+cmd);
+				}
+			} catch (ScriptException e) {
+				System.err.println("Syntax error in script: "+cmd);
 			}
 		}while(isRunning);
 		in.close();
