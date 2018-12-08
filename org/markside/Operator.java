@@ -14,4 +14,12 @@ public enum Operator {
             default: return null;
         }
     }
+	public static Operator startWith(String op){
+		for (Operator x : Operator.values()) {
+			if(op.startsWith(x.getName())) {
+				return x;
+			}
+		}
+        return null;
+    }
 }

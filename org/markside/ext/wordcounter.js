@@ -1,7 +1,7 @@
 script = {
     name:"wc",
     action:function(args,params){
-        var regex = new RegExp('\\s*');
+        var regex = new RegExp('\\s+');
         var ans = 0;
         
         args.forEach( function(e1) {

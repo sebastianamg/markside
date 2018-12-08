@@ -5,6 +5,8 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.text.ParseException;
 import java.util.Scanner;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
@@ -49,6 +51,7 @@ public class Engine {
 	private static final int 	CMD = 0,
 								PARS = 1,
 								ARGS = 2,
+								INIT_INDEX = 0,
 								INIT_STATE = 0,
 								RECURSIVE_STATE = 1,
 								START_ARGUMENTS_STATE = 3,
@@ -107,11 +110,12 @@ public class Engine {
 	
 	private void loadScript(String script) throws FileNotFoundException, ScriptException {
 		this.jsEng.eval(new FileReader(script));
-		System.out.println(this.jsEng.eval("loadScript(script)"));
+//		System.out.println(this.jsEng.eval("loadScript(script)"));
+		this.jsEng.eval("loadScript(script)");
 	}
 	
 	private String runFunction(String[]args) throws ScriptException {
-		return eval("runScript(\""+args[CMD]+"\",["+args[ARGS]+"],["+args[PARS]+"])");
+		return eval("runScript(\""+args[CMD]+"\","+args[ARGS]+","+args[PARS]+")");
 	}
 	
 	private boolean isLetter(char c) {
@@ -181,12 +185,15 @@ public class Engine {
 				break;
 			case FINAL_STATE:
 				recordArguments = false;
-//				System.out.println("cmdName: "+cmdName);
-//				System.out.println("parameters: "+parameters);
-//				System.out.println("arguments: "+arguments);
+				cmdName=cmdName.trim();
+				parameters=parameters.trim();
+				arguments=arguments.trim();
+//				System.out.println("cmdName: |"+cmdName+"|");
+//				System.out.println("parameters: |"+parameters+"|");
+//				System.out.println("arguments: |"+arguments+"|");
 				ans.setState(state);
 				ans.setIndex(i);
-				ans.setAnswer(ans.getAnswer()+runFunction(parseCmd(cmdName+" "+parameters+" "+arguments)));
+				ans.setAnswer(ans.getAnswer()+runFunction(parseCmd(cmdName,this.getJSArray(parameters),this.getJSArray(arguments))));
 				return ans;
 			case RECURSIVE_STATE:
 				Result tmp = execScript(input,state,i+1);
@@ -242,25 +249,26 @@ public class Engine {
 		}
 	}
 	
-	
-	private String[] parseCmd(String input) {
-//		System.out.println("parseCmd("+input+")");
-		String[] ans = new String[3];
-		ans[CMD] = ans[PARS] = ans[ARGS] = ""; 
-		Scanner str = new Scanner(input);
-		int i = 0;
-		boolean isString = false;
-		while(str.hasNext()) {
-			String s = str.next();
-			if(s.startsWith("\"") || s.endsWith("\"")) {
-				isString = !isString;
-			}
-			ans[i] +=  s + ((i==2 && !isString && str.hasNext())?",":((i==1)?"":" "));
-			i = (i<2)?i+1:2;
+	private String getJSArray(String input) {
+		final String PATTERN = "[\\w]+=\"[\\w ]+\"|([\\w]+=[\\w]+|[\\w]+=[\\w ]+)|\"[\\w ]+\"|[\\w]";
+		String ans = "[";
+		Pattern pattern = Pattern.compile(PATTERN);
+		Matcher str = pattern.matcher(input);
+		while(str.find()) {
+			String x = str.group().trim();
+			ans += x + ((str.hitEnd())?"":",");
+//			System.out.println("Matcher returns: |"+x+"|; hits the end?: "+str.hitEnd());
 		}
-		ans[CMD] = ans[CMD].trim();
-		ans[ARGS] = ans[ARGS].trim();
-		str.close();
+		ans =  ( (ans.endsWith(","))? ans.substring(0, ans.length()-1) : ans ) +  "]";
+//		System.out.println("getJSArray(input: |"+input+"|) = |"+ans+"|");
+		return ans;
+	}
+	
+	private String[] parseCmd(String cmd,String pars, String args) {
+		String[] ans = new String[3];
+		ans[CMD] = cmd;
+		ans[PARS] = pars;
+		ans[ARGS] = args;
 		return ans;
 	}
 	
@@ -270,9 +278,8 @@ public class Engine {
 		do {
 			System.out.print("> ");
 			String cmd = in.nextLine();
-			String[] parsedCmd = parseCmd(cmd);
 			try {
-				switch (Operator.valueOf(parsedCmd[CMD])) {
+				switch (Operator.startWith(cmd)) {
 				case list:
 					System.out.println("------- Basic:");
 					for (Operator op : Operator.values()) {
@@ -288,23 +295,28 @@ public class Engine {
 					isRunning = false;
 					break;
 				case exec:
-					Scanner fd = new Scanner(new File(parsedCmd[PARS]));
-					StringBuffer file = new StringBuffer();
-					while(fd.hasNextLine()) {
-						file.append(fd.nextLine());
-						if(fd.hasNextLine()) {
-							file.append("\n");
+					String[]args = cmd.split("[ ]+");
+					if(args.length == 2) {
+						Scanner fd = new Scanner(new File(args[PARS]));
+						StringBuffer file = new StringBuffer();
+						while(fd.hasNextLine()) {
+							file.append(fd.nextLine());
+							if(fd.hasNextLine()) {
+								file.append("\n");
+							}
 						}
+						fd.close();
+						System.out.println(execScript(file.toString(), INIT_STATE, 0).getAnswer());
+					}else {
+						throw new ParseException(cmd,INIT_INDEX);
 					}
-					fd.close();
-					System.out.println(execScript(file.toString(), INIT_STATE, 0).getAnswer());
 					break;
 				default:
 					break;
 				}
-			}catch(IllegalArgumentException e) {
+			}catch(NullPointerException | IllegalArgumentException e) {
 				try {
-					System.out.println(runFunction(parsedCmd));
+					System.out.println(execScript(cmd, INIT_STATE, INIT_INDEX).getAnswer());
 				} catch (ScriptException e1) {
 					System.err.println("Syntax error in script: "+cmd);
 				}
@@ -317,9 +329,22 @@ public class Engine {
 	
 	public static void main(String[] args) throws FileNotFoundException, ScriptException, ParseException {
 		Engine engine = new Engine();
-//		String script = "a b c \\add[a=1,b=2]{ 1 \\mul[a=1,b=2]{ 2 \\mul[a=1,b=2]{ 2  2   } } 3 \\mul[a=1,b=2]{ 2  2   }} \\wc[a=1,b=2]{ \"a b c\" } hello \\mul[a=1,b=2]{ 2  2   } world!";
 		engine.init();
 		engine.repl();
+		
+		
+		
+//		System.out.println(engine.getJSArray("a b=c w=xyz pqr=\"stu\" 1 pqr=\" st u \" 2 3 \"a b c\"    d \" f g \" 1 2 3"));
+//		System.out.println(engine.getJSArray("1 1"));
+		
+		
+		
+//		String script = "a b c \\add[a=1,b=2]{ 1 \\mul[a=1,b=2]{ 2 \\mul[a=1,b=2]{ 2  2   } } 3 \\mul[a=1,b=2]{ 2  2   }} hello \\mul[a=1,b=2]{ 2  2   } world!";
+//		String script = "a b c \\add[a=1,b=2]{ 1 \\mul[a=1,b=2]{ 2 \\mul[a=1,b=2]{ 2  2   } } 3 \\mul[a=1,b=2]{ 2  2   }} \\wc[a=1,b=2]{ \"a b c\" } hello \\mul[a=1,b=2]{ 2  2   } world!";
+//		String script = "\\add[a=0]{ 1 1 }";
+//		String script = "\\wc[]{ \"abc bcd cde f g 1 2 34 \" }";
+		
+//		engine.init();
 //		System.out.println(engine.execScript(script, INIT_STATE, 0).getAnswer());
 //		System.out.println("Script: "+script);
 	}

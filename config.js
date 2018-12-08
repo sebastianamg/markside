@@ -1,6 +1,7 @@
 extensions = [
 	"org/markside/ext/add.js",
-	"org/markside/ext/mul.js"
+	"org/markside/ext/mul.js",
+	"org/markside/ext/wordcounter.js"
 ];
 
 script = {
@@ -22,6 +23,6 @@ function getListOfScripts(){
 	return Object.keys(scripts).join("\n");
 };
 
-function runScript(name,args){
-	return scripts[name].action(args);
+function runScript(name,args,pars){
+	return scripts[name].action(args,pars);
 };
