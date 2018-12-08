@@ -272,12 +272,13 @@ public class Engine {
 		return ans;
 	}
 	
-	public void repl() throws FileNotFoundException, ParseException {
+	public void repl() {
 		Scanner in = new Scanner(System.in);
 		boolean isRunning = true;
 		do {
 			System.out.print("> ");
 			String cmd = in.nextLine();
+//			System.out.println("CMD: "+cmd);
 			try {
 				switch (Operator.startWith(cmd)) {
 				case list:
@@ -296,8 +297,10 @@ public class Engine {
 					break;
 				case exec:
 					String[]args = cmd.split("[ ]+");
+//					System.out.println("CMD args: "+args.length);
 					if(args.length == 2) {
 						Scanner fd = new Scanner(new File(args[PARS]));
+//						System.out.println("CMD args ARGS: "+args[PARS]);
 						StringBuffer file = new StringBuffer();
 						while(fd.hasNextLine()) {
 							file.append(fd.nextLine());
@@ -317,10 +320,10 @@ public class Engine {
 			}catch(NullPointerException | IllegalArgumentException e) {
 				try {
 					System.out.println(execScript(cmd, INIT_STATE, INIT_INDEX).getAnswer());
-				} catch (ScriptException e1) {
+				} catch (ScriptException | ParseException e1) {
 					System.err.println("Syntax error in script: "+cmd);
 				}
-			} catch (ScriptException e) {
+			} catch (ScriptException | FileNotFoundException | ParseException e) {
 				System.err.println("Syntax error in script: "+cmd);
 			}
 		}while(isRunning);

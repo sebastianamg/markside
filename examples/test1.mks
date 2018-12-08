@@ -1,3 +1,3 @@
 The sum of 1 and 1 is \add[a=0]{ 1 1 }.
 And the multiplication of 2, 2 and 2 is \mul[a=0]{ 2 2 2}.
-The number of words in "Hello World!" is \wc[a=0]{ "Hello World!" }, computed by markside. 
+The number of words in "Hello World!" is \wc[a=0]{ "Hello World" }, computed by markside. 
